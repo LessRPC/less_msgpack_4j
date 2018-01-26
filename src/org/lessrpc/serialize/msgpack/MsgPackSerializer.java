@@ -1,6 +1,7 @@
 package org.lessrpc.serialize.msgpack;
 
 import java.io.ByteArrayInputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -15,8 +16,8 @@ import org.lessrpc.common.info.ServiceRequest;
 import org.lessrpc.common.info.responses.ExecuteRequestResponse;
 import org.lessrpc.common.info.responses.ServiceResponse;
 import org.lessrpc.common.serializer.Serializer;
+import org.msgpack.jackson.dataformat.msgpack.MessagePackFactory;
 
-import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
@@ -31,7 +32,7 @@ public class MsgPackSerializer extends Serializer {
 	private ObjectMapper mapper;
 
 	public MsgPackSerializer() {
-		mapper = new ObjectMapper(new JsonFactory());
+		mapper = new ObjectMapper(new MessagePackFactory());
 	}
 
 	public MsgPackSerializer(ObjectMapper mapper) {
@@ -112,11 +113,12 @@ public class MsgPackSerializer extends Serializer {
 	private ExecuteRequestResponse<?> parseExecuteRequestResponse(InputStream in, ServiceLocator locator)
 			throws JsonParseException, IOException {
 		JsonParser parser = mapper.getFactory().createParser(in);
+		MsgPackParserWrapper wrapper = new MsgPackParserWrapper(parser);
 		ExecuteRequestResponse<?> response = new ExecuteRequestResponse<>();
 
 		JsonToken token = null;
 		String fieldName = null;
-		while ((token = parser.nextToken()) != null) {
+		while ((token = wrapper.nextToken()) != null) {
 			if (token == JsonToken.FIELD_NAME) {
 				fieldName = parser.getValueAsString();
 			} else if (fieldName != null) {
@@ -135,11 +137,12 @@ public class MsgPackSerializer extends Serializer {
 								long rid = parser.getLongValue();
 								res.setRequestId(rid);
 							} else if (fieldName2.equals("service")) {
-								ServiceInfo<?> service = parser.readValueAs(ServiceInfo.class);
+								ServiceInfo<?> service = mapper.readValue(parser, ServiceInfo.class);
+
 								res.setService(service);
 							} else if (fieldName2.equals("content")) {
-								Object obj = parser
-										.readValueAs(locator.locate(res.getService().getId()).getResultClspath());
+								Object obj = mapper.readValue(parser,
+										locator.locate(res.getService().getId()).getResultClspath());
 								res.setObject(obj);
 							}
 							fieldName2 = null;
@@ -162,19 +165,20 @@ public class MsgPackSerializer extends Serializer {
 	private ServiceRequest parseServiceRequest(InputStream in, ServiceLocator locator)
 			throws JsonParseException, IOException {
 		JsonParser parser = mapper.getFactory().createParser(in);
+		MsgPackParserWrapper wrapper = new MsgPackParserWrapper(parser);
 		ServiceRequest request = new ServiceRequest();
 
 		JsonToken token = null;
 		String fieldName = null;
-		while ((token = parser.nextToken()) != null) {
+		while ((token = wrapper.nextToken()) != null) {
 			if (token == JsonToken.FIELD_NAME) {
 				fieldName = parser.getValueAsString();
 			} else if (fieldName != null) {
 				if (fieldName.equals("service")) {
-					ServiceInfo<?> service = parser.readValueAs(ServiceInfo.class);
+					ServiceInfo<?> service = mapper.readValue(parser, ServiceInfo.class);
 					request.setService(service);
 				} else if (fieldName.equals("env")) {
-					EnvironmentInfo env = parser.readValueAs(EnvironmentInfo.class);
+					EnvironmentInfo env = mapper.readValue(parser, EnvironmentInfo.class);
 					request.setEnv(env);
 				} else if (fieldName.equals("rid")) {
 					long rid = parser.getLongValue();
@@ -183,8 +187,8 @@ public class MsgPackSerializer extends Serializer {
 					int idx = 0;
 					List<Object> args = new ArrayList<Object>();
 					while ((token = parser.nextToken()) != JsonToken.END_ARRAY) {
-						args.add(
-								parser.readValueAs(locator.locate(request.getService().getId()).getArgsClspath()[idx]));
+						args.add(mapper.readValue(parser,
+								locator.locate(request.getService().getId()).getArgsClspath()[idx]));
 						idx++;
 					}
 					request.setArgs(args.toArray());
@@ -200,4 +204,21 @@ public class MsgPackSerializer extends Serializer {
 
 	}
 
+}
+
+class MsgPackParserWrapper {
+
+	private JsonParser parser;
+
+	public MsgPackParserWrapper(JsonParser parser) {
+		this.parser = parser;
+	}
+
+	public JsonToken nextToken() throws IOException {
+		try {
+			return parser.nextToken();
+		} catch (EOFException e) {
+			return null;
+		}
+	}
 }

@@ -16,7 +16,7 @@ import org.lessrpc.common.info.ServiceRequest;
 import org.lessrpc.common.info.responses.ExecuteRequestResponse;
 import org.lessrpc.common.info.responses.ServiceResponse;
 import org.lessrpc.common.serializer.Serializer;
-import org.msgpack.jackson.dataformat.msgpack.MessagePackFactory;
+import org.msgpack.jackson.dataformat.MessagePackFactory;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
@@ -118,7 +118,7 @@ public class MsgPackSerializer extends Serializer {
 
 		JsonToken token = null;
 		String fieldName = null;
-		while ((token = wrapper.nextToken()) != null) {
+		while ((token = wrapper.nextToken()) != null && token != JsonToken.END_OBJECT) {
 			if (token == JsonToken.FIELD_NAME) {
 				fieldName = parser.getValueAsString();
 			} else if (fieldName != null) {
@@ -170,7 +170,7 @@ public class MsgPackSerializer extends Serializer {
 
 		JsonToken token = null;
 		String fieldName = null;
-		while ((token = wrapper.nextToken()) != null) {
+		while ((token = wrapper.nextToken()) != null && token != JsonToken.END_OBJECT) {
 			if (token == JsonToken.FIELD_NAME) {
 				fieldName = parser.getValueAsString();
 			} else if (fieldName != null) {

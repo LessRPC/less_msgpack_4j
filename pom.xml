@@ -46,10 +46,11 @@
 			<version>4.12</version>
 			<scope>compile</scope>
 		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.msgpack/jackson-dataformat-msgpack -->
 		<dependency>
-			<groupId>org.komamitsu</groupId>
+			<groupId>org.msgpack</groupId>
 			<artifactId>jackson-dataformat-msgpack</artifactId>
-			<version>0.0.3</version>
+			<version>0.8.14</version>
 		</dependency>
 	</dependencies>
 </project>

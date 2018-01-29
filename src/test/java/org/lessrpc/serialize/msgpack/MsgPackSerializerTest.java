@@ -126,6 +126,7 @@ public class MsgPackSerializerTest {
 
 		Serializer serializer = new MsgPackSerializer();
 		ExecuteRequestResponse<Integer> response2 = null;
+
 		try {
 			response2 = serializer.deserialize(serializer.serialize(response, ExecuteRequestResponse.class),
 					ExecuteRequestResponse.class,ServiceLocator.create(desc));
@@ -164,6 +165,34 @@ public class MsgPackSerializerTest {
 			assertEquals(req.getArgs()[i], req2.getArgs()[i]);
 		}
 	}
+	
+	@Test
+	public void testServiceRequestNoArgs() {
+
+		ServiceRequest req = new ServiceRequest(service, EnvironmentInfo.currentEnvInfo(), 1,
+				new Object[] { });
+		ServiceDescription<Integer> desc = new ServiceDescription<>(service,
+				new Class[] { }, Integer.class);
+
+		Serializer serializer = new MsgPackSerializer();
+		ServiceRequest req2 = null;
+		try {
+			req2 = serializer.deserialize(serializer.serialize(req, ServiceRequest.class),
+					ServiceRequest.class, ServiceLocator.create(desc));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		assertEquals(req.getService(), req2.getService());
+
+		assertEquals(req.getArgs().length, req2.getArgs().length);
+		
+		
+		for (int i = 0; i < req.getArgs().length; i++) {
+			assertEquals(req.getArgs()[i], req2.getArgs()[i]);
+		}
+	}
+	
 	
 	
 

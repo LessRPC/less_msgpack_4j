@@ -8,6 +8,9 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.codec.binary.Base64InputStream;
+import org.apache.commons.codec.binary.Base64OutputStream;
 import org.lessrpc.common.info.EnvironmentInfo;
 import org.lessrpc.common.info.SerializationFormat;
 import org.lessrpc.common.info.ServiceInfo;
@@ -16,6 +19,7 @@ import org.lessrpc.common.info.ServiceRequest;
 import org.lessrpc.common.info.responses.ExecuteRequestResponse;
 import org.lessrpc.common.info.responses.ServiceResponse;
 import org.lessrpc.common.serializer.Serializer;
+import org.msgpack.core.MessageInsufficientBufferException;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -41,21 +45,25 @@ public class MsgPackSerializer extends Serializer {
 
 	@Override
 	public <T> byte[] serialize(T obj, Class<T> cls) throws Exception {
-		return mapper.writeValueAsBytes(obj);
+		return Base64.encodeBase64(mapper.writeValueAsBytes(obj));
 	}
 
 	@Override
 	public <T> T deserialize(byte[] data, Class<T> cls) throws Exception {
+		data = Base64.decodeBase64(data);
 		return mapper.readValue(data, cls);
 	}
 
 	@Override
 	public <T> void serialize(T obj, Class<T> cls, OutputStream os) throws Exception {
+		os = new Base64OutputStream(os);
 		mapper.writeValue(os, obj);
 	}
 
 	@Override
 	public <T> T deserialize(InputStream is, Class<T> cls) throws Exception {
+		if (!(is instanceof Base64InputStream))
+			is = new Base64InputStream(is);
 		return mapper.readValue(is, cls);
 	}
 
@@ -91,13 +99,15 @@ public class MsgPackSerializer extends Serializer {
 
 	@Override
 	public <T, S> T deserialize(byte[] data, Class<T> cls, ServiceLocator locator) throws Exception {
-		ByteArrayInputStream in = new ByteArrayInputStream(data);
+		InputStream in = new ByteArrayInputStream(data);
 		return deserialize(in, cls, locator);
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public <T, S> T deserialize(InputStream in, Class<T> cls, ServiceLocator locator) throws Exception {
+		if (!(in instanceof Base64InputStream))
+			in = new Base64InputStream(in);
 		if (cls.equals(ServiceRequest.class)) {
 			return (T) parseServiceRequest(in, locator);
 		} else if (cls.equals(ExecuteRequestResponse.class)) {
@@ -112,6 +122,8 @@ public class MsgPackSerializer extends Serializer {
 	@SuppressWarnings("unchecked")
 	private ExecuteRequestResponse<?> parseExecuteRequestResponse(InputStream in, ServiceLocator locator)
 			throws JsonParseException, IOException {
+		if (!(in instanceof Base64InputStream))
+			in = new Base64InputStream(in);
 		JsonParser parser = mapper.getFactory().createParser(in);
 		MsgPackParserWrapper wrapper = new MsgPackParserWrapper(parser);
 		ExecuteRequestResponse<?> response = new ExecuteRequestResponse<>();
@@ -164,6 +176,8 @@ public class MsgPackSerializer extends Serializer {
 
 	private ServiceRequest parseServiceRequest(InputStream in, ServiceLocator locator)
 			throws JsonParseException, IOException {
+		if (!(in instanceof Base64InputStream))
+			in = new Base64InputStream(in);
 		JsonParser parser = mapper.getFactory().createParser(in);
 		MsgPackParserWrapper wrapper = new MsgPackParserWrapper(parser);
 		ServiceRequest request = new ServiceRequest();
@@ -218,6 +232,8 @@ class MsgPackParserWrapper {
 		try {
 			return parser.nextToken();
 		} catch (EOFException e) {
+			return null;
+		}catch ( MessageInsufficientBufferException e) {
 			return null;
 		}
 	}
